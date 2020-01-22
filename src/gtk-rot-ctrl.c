@@ -63,6 +63,8 @@
 
 static GtkVBoxClass *parent_class = NULL;
 
+static void toggle_rot_engage(GtkRotCtrl * ctrl, gboolean engage);
+
 
 /* Open the rotcld socket. Returns file descriptor or -1 if an error occurs */
 static gint rotctld_socket_open(const gchar * host, gint port)
@@ -1135,23 +1137,32 @@ static void rot_monitor_cb(GtkCheckButton * button, gpointer data)
     gtk_widget_set_sensitive(ctrl->track, !ctrl->monitor);
 }
 
-/**
- * Rotor locked.
- *
- * \param button Pointer to the "Engage" button.
- * \param data Pointer to the GtkRotCtrl widget.
- * 
- * This function is called when the user toggles the "Engage" button.
- */
-static void rot_locked_cb(GtkToggleButton * button, gpointer data)
+static void toggle_rot_engage(GtkRotCtrl * ctrl, gboolean engage)
 {
-    GtkRotCtrl     *ctrl = GTK_ROT_CTRL(data);
     gchar          *buff;
     gchar           buffback[128];
     gboolean        retcode;
     gint            retval;
 
-    if (!gtk_toggle_button_get_active(button))
+    if (engage)
+    {
+        if (ctrl->conf == NULL)
+        {
+            /* we don't have a working configuration */
+            sat_log_log(SAT_LOG_LEVEL_ERROR,
+                        _
+                        ("%s: Controller does not have a valid configuration"),
+                        __func__);
+            return;
+        }
+
+        ctrl->client.thread =
+            g_thread_new("gpredict_rotctl", rotctld_client_thread, ctrl);
+
+        gtk_widget_set_sensitive(ctrl->DevSel, FALSE);
+        ctrl->engaged = TRUE;
+    }
+    else
     {
         ctrl->engaged = FALSE;
         gtk_widget_set_sensitive(ctrl->DevSel, TRUE);
@@ -1184,24 +1195,21 @@ static void rot_locked_cb(GtkToggleButton * button, gpointer data)
         ctrl->client.running = FALSE;
         g_thread_join(ctrl->client.thread);
     }
-    else
-    {
-        if (ctrl->conf == NULL)
-        {
-            /* we don't have a working configuration */
-            sat_log_log(SAT_LOG_LEVEL_ERROR,
-                        _
-                        ("%s: Controller does not have a valid configuration"),
-                        __func__);
-            return;
-        }
+}
 
-        ctrl->client.thread =
-            g_thread_new("gpredict_rotctl", rotctld_client_thread, ctrl);
-
-        gtk_widget_set_sensitive(ctrl->DevSel, FALSE);
-        ctrl->engaged = TRUE;
-    }
+/**
+ * Rotor locked.
+ *
+ * \param button Pointer to the "Engage" button.
+ * \param data Pointer to the GtkRotCtrl widget.
+ * 
+ * This function is called when the user toggles the "Engage" button.
+ */
+static void rot_locked_cb(GtkToggleButton * button, gpointer data)
+{
+    GtkRotCtrl *ctrl = GTK_ROT_CTRL(data);
+    toggle_rot_engage(ctrl, gtk_toggle_button_get_active(button));
+    
 }
 
 
@@ -1251,6 +1259,8 @@ static void sat_selected_cb(GtkComboBox * satsel, gpointer data)
     /* in either case, we set the new pass (even if NULL) on the polar plot */
     if (ctrl->plot != NULL)
         gtk_polar_plot_set_pass(GTK_POLAR_PLOT(ctrl->plot), ctrl->pass);
+    ctrl->tracking = TRUE;
+    toggle_rot_engage(ctrl, TRUE);
 }
 
 /* Create target widgets */

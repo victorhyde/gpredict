@@ -683,7 +683,7 @@ static void sat_selected_cb(GtkComboBox * satsel, gpointer data)
             ctrl->pass = NULL;
         }
     }
-    ctrl->tracking=TRUE;
+    ctrl->tracking = TRUE;
     toggle_rig_engage(ctrl, TRUE);
 }
 

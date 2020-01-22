@@ -224,6 +224,7 @@ void gtk_sat_module_popup(GtkSatModule * module)
 static void test_cb(GtkWidget * menuitem, gpointer data)
 {
     rigctrl_cb(menuitem, data);
+    rotctrl_cb(menuitem, data);
     sat_selected_cb(menuitem, data);
 }
 
@@ -959,7 +960,7 @@ static void rotctrl_cb(GtkWidget * menuitem, gpointer data)
     GtkSatModule   *module = GTK_SAT_MODULE(data);
     gchar          *buff;
 
-    (void)menuitem;
+    // (void)menuitem;
 
     if (module->rotctrlwin != NULL)
     {
