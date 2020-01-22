@@ -42,6 +42,7 @@
 
 extern GtkWidget *app;          /* in main.c */
 
+static void     test_cb(GtkWidget * menuitem, gpointer data);
 static void     config_cb(GtkWidget * menuitem, gpointer data);
 static void     clone_cb(GtkWidget * menuitem, gpointer data);
 static void     docking_state_cb(GtkWidget * menuitem, gpointer data);
@@ -136,7 +137,7 @@ void gtk_sat_module_popup(GtkSatModule * module)
     g_signal_connect(menuitem, "activate", G_CALLBACK(autotrack_cb), module);
 
     /* select satellite submenu */
-    menuitem = gtk_menu_item_new_with_label(_("Select satellite"));
+    menuitem = gtk_menu_item_new_with_label(_("Connect to satellite"));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
 
     satsubmenu = gtk_menu_new();
@@ -152,7 +153,7 @@ void gtk_sat_module_popup(GtkSatModule * module)
         menuitem = gtk_menu_item_new_with_label(sat->nickname);
         g_object_set_data(G_OBJECT(menuitem), "catnum",
                           GINT_TO_POINTER(sat->tle.catnr));
-        g_signal_connect(menuitem, "activate", G_CALLBACK(sat_selected_cb),
+        g_signal_connect(menuitem, "activate", G_CALLBACK(test_cb),
                          module);
         gtk_menu_shell_append(GTK_MENU_SHELL(satsubmenu), menuitem);
     }
@@ -218,6 +219,12 @@ void gtk_sat_module_popup(GtkSatModule * module)
 
     gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL,
                    0, gdk_event_get_time(NULL));
+}
+
+static void test_cb(GtkWidget * menuitem, gpointer data)
+{
+    rigctrl_cb(menuitem, data);
+    sat_selected_cb(menuitem, data);
 }
 
 /**
@@ -873,7 +880,7 @@ static void rigctrl_cb(GtkWidget * menuitem, gpointer data)
     GtkSatModule   *module = GTK_SAT_MODULE(data);
     gchar          *buff;
 
-    (void)menuitem;
+    // (void)menuitem;
 
     if (module->rigctrlwin != NULL)
     {

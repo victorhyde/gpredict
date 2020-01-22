@@ -84,6 +84,7 @@ static gboolean unset_toggle(GtkRigCtrl * ctrl, gint sock);
 static gboolean get_freq_toggle(GtkRigCtrl * ctrl, gint sock, gdouble * freq);
 static gboolean get_ptt(GtkRigCtrl * ctrl, gint sock);
 static gboolean set_ptt(GtkRigCtrl * ctrl, gint sock, gboolean ptt);
+static void toggle_rig_engage(GtkRigCtrl * ctrl, gboolean engage);
 
 /*  add thread for hamlib communication */
 gpointer        rigctl_run(gpointer data);
@@ -682,6 +683,8 @@ static void sat_selected_cb(GtkComboBox * satsel, gpointer data)
             ctrl->pass = NULL;
         }
     }
+    ctrl->tracking=TRUE;
+    toggle_rig_engage(ctrl, TRUE);
 }
 
 /*
@@ -963,10 +966,8 @@ static void secondary_rig_selected_cb(GtkComboBox * box, gpointer data)
     }
 }
 
-static void rig_engaged_cb(GtkToggleButton * button, gpointer data)
+static void toggle_rig_engage(GtkRigCtrl * ctrl, gboolean engage)
 {
-    GtkRigCtrl     *ctrl = GTK_RIG_CTRL(data);
-
     if (ctrl->conf == NULL)
     {
         /* we don't have a working configuration */
@@ -976,18 +977,12 @@ static void rig_engaged_cb(GtkToggleButton * button, gpointer data)
         return;
     }
 
-    if (!gtk_toggle_button_get_active(button))
+    if(engage == ctrl->engaged)
     {
-        /* close socket */
-        gtk_widget_set_sensitive(ctrl->DevSel, TRUE);
-        gtk_widget_set_sensitive(ctrl->DevSel2, TRUE);
-        ctrl->engaged = FALSE;
-
-        /*  stop worker thread... */
-        setconfig(ctrl);
-        ctrl->rigctl_thread = NULL;
+        return;
     }
-    else
+
+    if (engage)
     {
         gtk_widget_set_sensitive(ctrl->DevSel, FALSE);
         gtk_widget_set_sensitive(ctrl->DevSel2, FALSE);
@@ -998,6 +993,23 @@ static void rig_engaged_cb(GtkToggleButton * button, gpointer data)
         ctrl->rigctl_thread = g_thread_new("rigctl_run", rigctl_run, ctrl);
         setconfig(ctrl);
     }
+    else
+    {
+        /* close socket */
+        gtk_widget_set_sensitive(ctrl->DevSel, TRUE);
+        gtk_widget_set_sensitive(ctrl->DevSel2, TRUE);
+        ctrl->engaged = FALSE;
+
+        /*  stop worker thread... */
+        setconfig(ctrl);
+        ctrl->rigctl_thread = NULL;
+    }
+}
+
+static void rig_engaged_cb(GtkToggleButton * button, gpointer data)
+{
+    GtkRigCtrl     *ctrl = GTK_RIG_CTRL(data);
+    toggle_rig_engage(ctrl, gtk_toggle_button_get_active(button));
 }
 
 static GtkWidget *create_target_widgets(GtkRigCtrl * ctrl)
