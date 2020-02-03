@@ -84,7 +84,8 @@ static gboolean unset_toggle(GtkRigCtrl * ctrl, gint sock);
 static gboolean get_freq_toggle(GtkRigCtrl * ctrl, gint sock, gdouble * freq);
 static gboolean get_ptt(GtkRigCtrl * ctrl, gint sock);
 static gboolean set_ptt(GtkRigCtrl * ctrl, gint sock, gboolean ptt);
-static void toggle_rig_engage(GtkRigCtrl * ctrl, gboolean engage);
+static void     toggle_rig_engage(GtkRigCtrl * ctrl, gboolean engage);
+static void     set_tracking(GtkRigCtrl * ctrl, gboolean tracking);
 
 /*  add thread for hamlib communication */
 gpointer        rigctl_run(gpointer data);
@@ -683,8 +684,19 @@ static void sat_selected_cb(GtkComboBox * satsel, gpointer data)
             ctrl->pass = NULL;
         }
     }
-    ctrl->tracking = TRUE;
-    toggle_rig_engage(ctrl, TRUE);
+    // set_tracking(ctrl, TRUE);
+    // toggle_rig_engage(ctrl, TRUE);
+}
+
+/*
+ * Engages/disengages the radio device and starts/stops tracking.
+ *
+ * @param active If true, selected radio will be engaged and doppler shift will be applied. 
+ * If false, radio will be disengaged.
+ */
+void gtk_rig_ctrl_set_sat_connection_active(GtkRigCtrl * ctrl, gboolean active){
+    set_tracking(ctrl, active);
+    toggle_rig_engage(ctrl, active); 
 }
 
 /*
@@ -788,12 +800,18 @@ static void trsp_lock_cb(GtkToggleButton * button, gpointer data)
 static void track_toggle_cb(GtkToggleButton * button, gpointer data)
 {
     GtkRigCtrl     *ctrl = GTK_RIG_CTRL(data);
+    set_tracking(ctrl, gtk_toggle_button_get_active(button));
+}
 
-    ctrl->tracking = gtk_toggle_button_get_active(button);
+static void set_tracking(GtkRigCtrl * ctrl, gboolean tracking)
+{
+    ctrl->tracking = tracking;
 
     /* invalidate sync with radio */
     ctrl->lastrxf = 0.0;
     ctrl->lasttxf = 0.0;
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctrl->TrackBut), tracking);
 }
 
 /* Called when the user changes the value of the cycle delay */
@@ -1004,6 +1022,8 @@ static void toggle_rig_engage(GtkRigCtrl * ctrl, gboolean engage)
         setconfig(ctrl);
         ctrl->rigctl_thread = NULL;
     }
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctrl->LockBut), engage);
 }
 
 static void rig_engaged_cb(GtkToggleButton * button, gpointer data)
@@ -1014,7 +1034,7 @@ static void rig_engaged_cb(GtkToggleButton * button, gpointer data)
 
 static GtkWidget *create_target_widgets(GtkRigCtrl * ctrl)
 {
-    GtkWidget      *frame, *table, *label, *track;
+    GtkWidget      *frame, *table, *label;
     GtkWidget      *tune, *trsplock, *hbox;
     gchar          *buff;
     guint           i, n;
@@ -1045,13 +1065,13 @@ static GtkWidget *create_target_widgets(GtkRigCtrl * ctrl)
     gtk_grid_attach(GTK_GRID(table), ctrl->SatSel, 0, 0, 3, 1);
 
     /* tracking button */
-    track = gtk_toggle_button_new_with_label(_("Track"));
-    gtk_widget_set_tooltip_text(track,
+    ctrl->TrackBut = gtk_toggle_button_new_with_label(_("Track"));
+    gtk_widget_set_tooltip_text(ctrl->TrackBut,
                                 _("Track the satellite transponder.\n"
                                   "Enabling this button will apply Doppler "
                                   "correction to the frequency of the radio."));
-    gtk_grid_attach(GTK_GRID(table), track, 3, 0, 1, 1);
-    g_signal_connect(track, "toggled", G_CALLBACK(track_toggle_cb), ctrl);
+    gtk_grid_attach(GTK_GRID(table), ctrl->TrackBut, 3, 0, 1, 1);
+    g_signal_connect(ctrl->TrackBut, "toggled", G_CALLBACK(track_toggle_cb), ctrl);
 
     /* Transponder selector, tune, and trsplock buttons */
     ctrl->TrspSel = gtk_combo_box_text_new();

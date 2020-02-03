@@ -242,6 +242,7 @@ static void gtk_sat_module_init(GtkSatModule * module)
 
     module->target = -1;
     module->autotrack = FALSE;
+    module->connectedToTarget = FALSE;
 }
 
 GType gtk_sat_module_get_type()
@@ -1503,6 +1504,24 @@ void gtk_sat_module_select_sat(GtkSatModule * module, gint catnum)
 
     if (module->rotctrl != NULL)
         gtk_rot_ctrl_select_sat(GTK_ROT_CTRL(module->rotctrl), catnum);
+}
+
+void gtk_sat_module_connect_to_sat(GtkSatModule * module, gint catnum)
+{
+    gtk_sat_module_select_sat(module, catnum);
+
+    if (module->rigctrl != NULL)
+        gtk_rig_ctrl_set_sat_connection_active(GTK_RIG_CTRL(module->rigctrl), TRUE);
+
+    module->connectedToTarget = TRUE;
+}
+
+void gtk_sat_module_disconnect_from_sat(GtkSatModule * module)
+{
+    if (module->rigctrl != NULL)
+        gtk_rig_ctrl_set_sat_connection_active(GTK_RIG_CTRL(module->rigctrl), FALSE);
+
+    module->connectedToTarget = FALSE;
 }
 
 /**

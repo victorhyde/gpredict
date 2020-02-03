@@ -150,7 +150,12 @@ void gtk_sat_module_popup(GtkSatModule * module)
     for (i = 0; i < n; i++)
     {
         sat = SAT(g_list_nth_data(sats, i));
-        menuitem = gtk_menu_item_new_with_label(sat->nickname);
+        menuitem = gtk_check_menu_item_new_with_label(sat->nickname);
+
+        if (module->target == sat->tle.catnr && module->connectedToTarget)
+            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menuitem),
+                                           TRUE);
+
         g_object_set_data(G_OBJECT(menuitem), "catnum",
                           GINT_TO_POINTER(sat->tle.catnr));
         g_signal_connect(menuitem, "activate", G_CALLBACK(test_cb),
@@ -225,7 +230,35 @@ static void test_cb(GtkWidget * menuitem, gpointer data)
 {
     rigctrl_cb(menuitem, data);
     rotctrl_cb(menuitem, data);
-    sat_selected_cb(menuitem, data);
+    //sat_selected_cb(menuitem, data);
+
+    gint            catnum;
+    GtkSatModule   *module;
+
+    catnum = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(menuitem), "catnum"));
+    module = GTK_SAT_MODULE(data);
+
+    sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s:%d: EXISTING SELECTION: %d"),
+                    __FILE__, __LINE__, module->target);
+
+    sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s:%d: NEW SELECTION: %d"),
+                    __FILE__, __LINE__, catnum);
+
+
+    if(module->target == catnum && module->connectedToTarget == TRUE)
+    {
+        // Satellite already selected, disconnect from it.
+        gtk_sat_module_disconnect_from_sat(module);
+    }
+    else
+    {
+        // New selection, connnect to selected satellite.
+        gtk_sat_module_connect_to_sat(module, catnum);
+    }
+    
+    
 }
 
 /**
@@ -795,6 +828,7 @@ static void sat_selected_cb(GtkWidget * menuitem, gpointer data)
 
     catnum = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(menuitem), "catnum"));
     module = GTK_SAT_MODULE(data);
+
     gtk_sat_module_select_sat(module, catnum);
 }
 
