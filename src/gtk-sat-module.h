@@ -138,6 +138,8 @@ void            gtk_sat_module_select_sat(GtkSatModule * module, gint catnum);
 void            gtk_sat_module_connect_to_sat(GtkSatModule * module, gint catnum);
 void            gtk_sat_module_disconnect_from_sat(GtkSatModule * module);
 
+void            gtk_sat_module_start_rigctrl(GtkSatModule * module, gboolean showWindow);
+
 void            gtk_sat_module_fix_size(GtkWidget * module);
 
 /* *INDENT-OFF* */

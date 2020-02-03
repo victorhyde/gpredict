@@ -84,7 +84,7 @@ static gboolean unset_toggle(GtkRigCtrl * ctrl, gint sock);
 static gboolean get_freq_toggle(GtkRigCtrl * ctrl, gint sock, gdouble * freq);
 static gboolean get_ptt(GtkRigCtrl * ctrl, gint sock);
 static gboolean set_ptt(GtkRigCtrl * ctrl, gint sock, gboolean ptt);
-static void     toggle_rig_engage(GtkRigCtrl * ctrl, gboolean engage);
+static void     set_rig_engaged(GtkRigCtrl * ctrl, gboolean engage);
 static void     set_tracking(GtkRigCtrl * ctrl, gboolean tracking);
 
 /*  add thread for hamlib communication */
@@ -684,8 +684,6 @@ static void sat_selected_cb(GtkComboBox * satsel, gpointer data)
             ctrl->pass = NULL;
         }
     }
-    // set_tracking(ctrl, TRUE);
-    // toggle_rig_engage(ctrl, TRUE);
 }
 
 /*
@@ -696,7 +694,7 @@ static void sat_selected_cb(GtkComboBox * satsel, gpointer data)
  */
 void gtk_rig_ctrl_set_sat_connection_active(GtkRigCtrl * ctrl, gboolean active){
     set_tracking(ctrl, active);
-    toggle_rig_engage(ctrl, active); 
+    set_rig_engaged(ctrl, active); 
 }
 
 /*
@@ -984,7 +982,7 @@ static void secondary_rig_selected_cb(GtkComboBox * box, gpointer data)
     }
 }
 
-static void toggle_rig_engage(GtkRigCtrl * ctrl, gboolean engage)
+static void set_rig_engaged(GtkRigCtrl * ctrl, gboolean engage)
 {
     if (ctrl->conf == NULL)
     {
@@ -1029,7 +1027,7 @@ static void toggle_rig_engage(GtkRigCtrl * ctrl, gboolean engage)
 static void rig_engaged_cb(GtkToggleButton * button, gpointer data)
 {
     GtkRigCtrl     *ctrl = GTK_RIG_CTRL(data);
-    toggle_rig_engage(ctrl, gtk_toggle_button_get_active(button));
+    set_rig_engaged(ctrl, gtk_toggle_button_get_active(button));
 }
 
 static GtkWidget *create_target_widgets(GtkRigCtrl * ctrl)

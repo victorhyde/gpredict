@@ -64,6 +64,9 @@
 #include "sgpsdp/sgp4sdp4.h"
 #include "time-tools.h"
 
+void destroy_rigctrl(GtkWidget * window, gpointer data);
+gint window_delete(GtkWidget * widget, GdkEvent * event,
+                              gpointer data);
 
 static GtkVBoxClass *parent_class = NULL;
 
@@ -1510,6 +1513,10 @@ void gtk_sat_module_connect_to_sat(GtkSatModule * module, gint catnum)
 {
     gtk_sat_module_select_sat(module, catnum);
 
+    // Start rigctrl and rotctrl in the background without showing
+    // the control windows to the user.
+    gtk_sat_module_start_rigctrl(module, FALSE);
+
     if (module->rigctrl != NULL)
         gtk_rig_ctrl_set_sat_connection_active(GTK_RIG_CTRL(module->rigctrl), TRUE);
 
@@ -1519,9 +1526,111 @@ void gtk_sat_module_connect_to_sat(GtkSatModule * module, gint catnum)
 void gtk_sat_module_disconnect_from_sat(GtkSatModule * module)
 {
     if (module->rigctrl != NULL)
-        gtk_rig_ctrl_set_sat_connection_active(GTK_RIG_CTRL(module->rigctrl), FALSE);
+    {
+        if(gtk_widget_is_visible(module->rigctrlwin))
+        {
+            // If the rigctrl window is open, keep the process running
+            // but disengage the radio and tracking.
+            gtk_rig_ctrl_set_sat_connection_active(GTK_RIG_CTRL(module->rigctrl), FALSE);
+        }
+        else
+        {
+            // If the rigctrl window is not visible to the user,
+            // destroy the rigctrl object.
+            destroy_rigctrl(module->rigctrlwin, module);
+        }
+    }
 
     module->connectedToTarget = FALSE;
+}
+
+void gtk_sat_module_start_rigctrl(GtkSatModule * module, gboolean showWindow)
+{
+    gchar          *buff;
+
+    if (module->rigctrlwin != NULL)
+    {
+        if(showWindow)
+        {
+            /* there is already a radio controller for this module */
+            gtk_widget_show_all(module->rigctrlwin);
+            gtk_window_present(GTK_WINDOW(module->rigctrlwin));
+        }
+        return;
+    }
+
+    module->rigctrl = gtk_rig_ctrl_new(module);
+
+    if (module->rigctrl == NULL)
+    {
+        /* gtk_rig_ctrl_new returned NULL becasue no radios are configured */
+        GtkWidget      *dialog;
+
+        dialog = gtk_message_dialog_new(NULL,
+                                        GTK_DIALOG_MODAL |
+                                        GTK_DIALOG_DESTROY_WITH_PARENT,
+                                        GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                        _("You have no radio configuration!\n"
+                                          "Please configure a radio first."));
+        g_signal_connect_swapped(dialog, "response",
+                                 G_CALLBACK(gtk_widget_destroy), dialog);
+        gtk_window_set_title(GTK_WINDOW(dialog), _("ERROR"));
+        gtk_widget_show_all(dialog);
+
+        return;
+    }
+
+    /* create a window */
+    module->rigctrlwin = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    buff = g_strdup_printf(_("Gpredict Radio Control: %s"), module->name);
+    gtk_window_set_title(GTK_WINDOW(module->rigctrlwin), buff);
+    g_free(buff);
+    g_signal_connect(G_OBJECT(module->rigctrlwin), "delete_event",
+                     G_CALLBACK(window_delete), NULL);
+    g_signal_connect(G_OBJECT(module->rigctrlwin), "destroy",
+                     G_CALLBACK(destroy_rigctrl), module);
+
+    /* window icon */
+    buff = icon_file_name("gpredict-oscilloscope.png");
+    gtk_window_set_icon_from_file(GTK_WINDOW(module->rigctrlwin), buff, NULL);
+    g_free(buff);
+
+    gtk_container_add(GTK_CONTAINER(module->rigctrlwin), module->rigctrl);
+
+    if(showWindow)
+    {
+        gtk_widget_show_all(module->rigctrlwin);
+    }
+}
+
+/**
+ * Destroy radio control window.
+ *
+ * @param window Pointer to the radio control window.
+ * @param data Pointer to the GtkSatModule to which this controller is attached.
+ * 
+ * This function is called automatically when the window is destroyed.
+ */
+void destroy_rigctrl(GtkWidget * window, gpointer data)
+{
+    GtkSatModule   *module = GTK_SAT_MODULE(data);
+
+    (void)window;               /* avoid unused parameter compiler warning */
+
+    module->rigctrlwin = NULL;
+    module->rigctrl = NULL;
+
+    module->connectedToTarget = FALSE;
+}
+
+/** Ensure that deleted top-level windows are destroyed */
+gint window_delete(GtkWidget * widget, GdkEvent * event, gpointer data)
+{
+    (void)widget;
+    (void)event;
+    (void)data;
+
+    return FALSE;
 }
 
 /**
