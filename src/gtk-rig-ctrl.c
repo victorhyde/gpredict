@@ -998,6 +998,8 @@ static void set_rig_engaged(GtkRigCtrl * ctrl, gboolean engage)
         return;
     }
 
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctrl->LockBut), engage);
+
     if (engage)
     {
         gtk_widget_set_sensitive(ctrl->DevSel, FALSE);
@@ -1020,8 +1022,6 @@ static void set_rig_engaged(GtkRigCtrl * ctrl, gboolean engage)
         setconfig(ctrl);
         ctrl->rigctl_thread = NULL;
     }
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctrl->LockBut), engage);
 }
 
 static void rig_engaged_cb(GtkToggleButton * button, gpointer data)

@@ -42,9 +42,9 @@ struct _gtk_rot_ctrl {
     GtkWidget      *SatCnt;
     GtkWidget      *DevSel;
     GtkWidget      *plot;       /*!< Polar plot widget */
+    GtkWidget      *TrackBut;
     GtkWidget      *LockBut;
     GtkWidget      *MonitorCheckBox;
-    GtkWidget      *track;
     GtkWidget      *cycle_spin;      /*!< Update timer cycle */
     GtkWidget      *thld_spin;       /*!< Threshold spin */
 
@@ -92,6 +92,7 @@ GType           gtk_rot_ctrl_get_type(void);
 GtkWidget      *gtk_rot_ctrl_new(GtkSatModule * module);
 void            gtk_rot_ctrl_update(GtkRotCtrl * ctrl, gdouble t);
 void            gtk_rot_ctrl_select_sat(GtkRotCtrl * ctrl, gint catnum);
+void            gtk_rot_ctrl_set_sat_connection_active(GtkRotCtrl * ctrl, gboolean active);
 
 #ifdef __cplusplus
 }

@@ -63,7 +63,8 @@
 
 static GtkVBoxClass *parent_class = NULL;
 
-static void toggle_rot_engage(GtkRotCtrl * ctrl, gboolean engage);
+static void     set_rot_engaged(GtkRotCtrl * ctrl, gboolean engage);
+static void     set_tracking(GtkRotCtrl * ctrl, gboolean tracking);
 
 
 /* Open the rotcld socket. Returns file descriptor or -1 if an error occurs */
@@ -713,14 +714,21 @@ static GtkWidget *create_el_widgets(GtkRotCtrl * ctrl)
 static void track_toggle_cb(GtkToggleButton * button, gpointer data)
 {
     GtkRotCtrl     *ctrl = GTK_ROT_CTRL(data);
+    set_tracking(ctrl, gtk_toggle_button_get_active(button));
+}
+
+static void set_tracking(GtkRotCtrl * ctrl, gboolean tracking)
+{
     gboolean        locked;
 
     locked = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ctrl->LockBut));
-    ctrl->tracking = gtk_toggle_button_get_active(button);
+    ctrl->tracking = tracking;
     gtk_widget_set_sensitive(ctrl->MonitorCheckBox,
                              !(ctrl->tracking || locked));
     gtk_widget_set_sensitive(ctrl->AzSet, !ctrl->tracking);
     gtk_widget_set_sensitive(ctrl->ElSet, !ctrl->tracking);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctrl->TrackBut), tracking);
 }
 
 /**
@@ -1134,11 +1142,18 @@ static void rot_monitor_cb(GtkCheckButton * button, gpointer data)
     ctrl->monitor = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
     gtk_widget_set_sensitive(ctrl->AzSet, !ctrl->monitor);
     gtk_widget_set_sensitive(ctrl->ElSet, !ctrl->monitor);
-    gtk_widget_set_sensitive(ctrl->track, !ctrl->monitor);
+    gtk_widget_set_sensitive(ctrl->TrackBut, !ctrl->monitor);
 }
 
-static void toggle_rot_engage(GtkRotCtrl * ctrl, gboolean engage)
+static void set_rot_engaged(GtkRotCtrl * ctrl, gboolean engage)
 {
+    if(engage == ctrl->engaged)
+    {
+        return;
+    }
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctrl->LockBut), engage);
+    
     gchar          *buff;
     gchar           buffback[128];
     gboolean        retcode;
@@ -1208,7 +1223,7 @@ static void toggle_rot_engage(GtkRotCtrl * ctrl, gboolean engage)
 static void rot_locked_cb(GtkToggleButton * button, gpointer data)
 {
     GtkRotCtrl *ctrl = GTK_ROT_CTRL(data);
-    toggle_rot_engage(ctrl, gtk_toggle_button_get_active(button));
+    set_rot_engaged(ctrl, gtk_toggle_button_get_active(button));
     
 }
 
@@ -1259,8 +1274,12 @@ static void sat_selected_cb(GtkComboBox * satsel, gpointer data)
     /* in either case, we set the new pass (even if NULL) on the polar plot */
     if (ctrl->plot != NULL)
         gtk_polar_plot_set_pass(GTK_POLAR_PLOT(ctrl->plot), ctrl->pass);
-    ctrl->tracking = TRUE;
-    toggle_rot_engage(ctrl, TRUE);
+}
+
+void gtk_rot_ctrl_set_sat_connection_active(GtkRotCtrl * ctrl, gboolean active)
+{
+    set_tracking(ctrl, active);
+    set_rot_engaged(ctrl, active); 
 }
 
 /* Create target widgets */
@@ -1297,12 +1316,12 @@ static GtkWidget *create_target_widgets(GtkRotCtrl * ctrl)
     gtk_grid_attach(GTK_GRID(table), ctrl->SatSel, 0, 0, 2, 1);
 
     /* tracking button */
-    ctrl->track = gtk_toggle_button_new_with_label(_("Track"));
-    gtk_widget_set_tooltip_text(ctrl->track,
+    ctrl->TrackBut = gtk_toggle_button_new_with_label(_("Track"));
+    gtk_widget_set_tooltip_text(ctrl->TrackBut,
                                 _
                                 ("Track the satellite when it is within range"));
-    gtk_grid_attach(GTK_GRID(table), ctrl->track, 2, 0, 1, 1);
-    g_signal_connect(ctrl->track, "toggled", G_CALLBACK(track_toggle_cb),
+    gtk_grid_attach(GTK_GRID(table), ctrl->TrackBut, 2, 0, 1, 1);
+    g_signal_connect(ctrl->TrackBut, "toggled", G_CALLBACK(track_toggle_cb),
                      ctrl);
 
     /* Azimuth */
