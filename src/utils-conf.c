@@ -41,9 +41,3 @@ int setDefaultModule(char *moduleName) {
     fclose(fp);
     return 0;
 }
-
-// For debugging purposes
-// int main() {
-//     setDefaultModule("Test");
-//     return 0;
-// }
