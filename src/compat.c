@@ -322,6 +322,19 @@ gchar          *get_hwconf_dir(void)
     return dir;
 }
 
+/** Get USER_CONF_DIR/scheduler */
+gchar          *get_scheduler_dir(void)
+{
+    gchar          *confdir;
+    gchar          *dir;
+
+    confdir = get_user_conf_dir();
+    dir = g_strconcat(confdir, G_DIR_SEPARATOR_S, "scheduler", NULL);
+    g_free(confdir);
+
+    return dir;
+}
+
 /** Get full path of a .sat or .cat file */
 gchar          *sat_file_name(const gchar * satfile)
 {

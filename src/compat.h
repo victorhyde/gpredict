@@ -12,6 +12,7 @@ gchar          *get_satdata_dir(void);
 gchar          *get_trsp_dir(void);
 gchar          *get_hwconf_dir(void);
 gchar          *get_old_conf_dir(void);
+gchar          *get_scheduler_dir(void);
 gchar          *map_file_name(const gchar * map);
 gchar          *logo_file_name(const gchar * logo);
 gchar          *icon_file_name(const gchar * icon);

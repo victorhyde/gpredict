@@ -27,6 +27,7 @@
 #include "orbit-tools.h"
 #include "pass-popup-menu.h"
 #include "sat-cfg.h"
+#include "sat-connection-scheduler.h"
 #include "sat-log.h"
 #include "sat-pass-dialogs.h"
 #include "sgpsdp/sgp4sdp4.h"
@@ -37,7 +38,7 @@ extern GtkWidget *app;
 /**
  * Show pass details.
  *
- * @param menuitem The seelcted menuitem.
+ * @param menuitem The selected menuitem.
  * @param data Pointer to the toplevel window.
  *
  * This function is called when the user selects the "Show details" menu item
@@ -52,6 +53,29 @@ static void show_pass_details(GtkWidget * menuitem, gpointer data)
     qth = (qth_t *) g_object_get_data(G_OBJECT(menuitem), "qth");
 
     show_pass(pass->satname, qth, pass, data);
+}
+
+/**
+ * Schedule connection for selected pass
+ *
+ * @param menuitem The selected menuitem.
+ * @param data Pointer to the toplevel window.
+ *
+ * This function is called when the user selects the "Schedule connection" menu item
+ * in the upcoming passes popup menu.
+ */
+static void schedule_pass_connection(GtkWidget * menuitem, gpointer data)
+{
+    // pass_t         *pass;
+    // qth_t          *qth;
+
+    // pass = PASS(g_object_get_data(G_OBJECT(menuitem), "pass"));
+    // qth = (qth_t *) g_object_get_data(G_OBJECT(menuitem), "qth");
+
+    (void)menuitem;
+    (void)data;
+    g_print("HERE");
+    schedule();
 }
 
 /* data = toplevel window */
@@ -86,6 +110,18 @@ void pass_popup_menu_exec(qth_t * qth, pass_t * pass, GdkEventButton * event,
     g_object_set_data(G_OBJECT(menuitem), "qth", qth);
     g_signal_connect(menuitem, "activate",
                      G_CALLBACK(show_pass_details), toplevel);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+
+    /* separator */
+    menuitem = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+
+    /* schedule satellite connection for pass */
+    menuitem = gtk_menu_item_new_with_label(_("Schedule connection"));
+    g_object_set_data(G_OBJECT(menuitem), "pass", pass);
+    g_object_set_data(G_OBJECT(menuitem), "qth", qth);
+    g_signal_connect(menuitem, "activate",
+                     G_CALLBACK(schedule_pass_connection), toplevel);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
 
     /* separator */
