@@ -51,6 +51,7 @@ static gboolean cleantrsp = FALSE;
 
 static gint sat_catnum = -1;
 static gchar *module_name = NULL;
+static gdouble disconnect_time = -1;
 
 /* Command line options. */
 static GOptionEntry entries[] = {
@@ -60,6 +61,8 @@ static GOptionEntry entries[] = {
      "Clean the transponder data in user's configuration directory", NULL},
     { "track-sat", 0, 0, G_OPTION_ARG_INT, &sat_catnum, "Engage radio and antenna to track satellite specified by catalog number", "N" },
     { "module", 0, 0, G_OPTION_ARG_STRING, &module_name, "Name of module from which to track satellite", "NAME" },
+    { "disconnect-time", 0, 0, G_OPTION_ARG_DOUBLE, &disconnect_time, ("Time at which to auto disengage radio and antenna, "
+         "using Julian representation"), "T" },
     {NULL}
 };
 
@@ -163,7 +166,11 @@ int main(int argc, char *argv[])
     }
     if(module && sat_catnum >= 0){
         mod_mgr_switch_to_module(module);
-        gtk_sat_module_connect_to_sat(GTK_SAT_MODULE(module), sat_catnum);
+        if(disconnect_time >= 0){
+            gtk_sat_module_connect_to_sat_auto_disconnect(GTK_SAT_MODULE(module), sat_catnum, disconnect_time);
+        } else {
+            gtk_sat_module_connect_to_sat(GTK_SAT_MODULE(module), sat_catnum);
+        }
     }
     else{
         g_print("Unable to connect to satellite: %d\n", sat_catnum);
