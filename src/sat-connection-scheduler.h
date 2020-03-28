@@ -1,1 +1,1 @@
-void schedule();
+void schedule(gchar * moduleName, gint catnum, gdouble startTime, gdouble endTime);

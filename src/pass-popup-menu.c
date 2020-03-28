@@ -66,16 +66,16 @@ static void show_pass_details(GtkWidget * menuitem, gpointer data)
  */
 static void schedule_pass_connection(GtkWidget * menuitem, gpointer data)
 {
-    // pass_t         *pass;
-    // qth_t          *qth;
+    pass_t         *pass;
+    qth_t          *qth;
 
-    // pass = PASS(g_object_get_data(G_OBJECT(menuitem), "pass"));
-    // qth = (qth_t *) g_object_get_data(G_OBJECT(menuitem), "qth");
+    pass = PASS(g_object_get_data(G_OBJECT(menuitem), "pass"));
+    qth = (qth_t *) g_object_get_data(G_OBJECT(menuitem), "qth");
 
     (void)menuitem;
     (void)data;
     g_print("HERE");
-    schedule();
+    schedule("Amateur", 1234, pass->aos, pass->los);
 }
 
 /* data = toplevel window */
