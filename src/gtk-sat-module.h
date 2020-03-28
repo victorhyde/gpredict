@@ -115,11 +115,7 @@ struct _gtk_sat_module {
     /* auto-tracking */
     gint            target;     /*!< Target satellite */
     gboolean        autotrack;  /*!< Whether automatic tracking is enabled */
-
-    /* radio/antenna auto-engage */
     gboolean        connectedToTarget;  /*!< Whether the antenna and radio are engaged to track target satellite */
-    gboolean        autoDisconnect;     /*!< Flag indicating whether the radio/antenna should be disengaged at the specified time */
-    gdouble         autoDisconnectTime; /*!< Julian date at which to auto disengage radio and antenna */
 
     /* location structure */
     struct gps_data_t *gps_data;        /*!< GPSD data structure */
@@ -140,7 +136,6 @@ void            gtk_sat_module_reconf(GtkSatModule * module, gboolean local);
 void            gtk_sat_module_select_sat(GtkSatModule * module, gint catnum);
 
 void            gtk_sat_module_connect_to_sat(GtkSatModule * module, gint catnum);
-void            gtk_sat_module_connect_to_sat_auto_disconnect(GtkSatModule * module, gint catnum, gdouble autoDisconnectTime);
 void            gtk_sat_module_disconnect_from_sat(GtkSatModule * module);
 
 void            gtk_sat_module_start_rigctrl(GtkSatModule * module, gboolean showWindow);

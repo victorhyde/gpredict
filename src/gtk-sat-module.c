@@ -698,7 +698,6 @@ static gboolean gtk_sat_module_timeout_cb(gpointer module)
     GdkWindowState  state;
     gdouble         delta;
     guint           i;
-    sat_t          *sat = NULL;
 
     /*update the qth position */
     qth_data_update(mod->qth, mod->tmgCdnum);
@@ -816,14 +815,6 @@ static gboolean gtk_sat_module_timeout_cb(gpointer module)
                in RT or SRT mode */
             if (mod->throttle)
                 tmg_update_widgets(mod);
-        }
-
-        if (mod->target > 0 && mod->connectedToTarget){
-            sat = g_hash_table_lookup(mod->satellites, &mod->target);
-
-            if(mod->autoDisconnect && mod->tmgCdnum > mod->autoDisconnectTime){
-                gtk_sat_module_disconnect_from_sat(mod);
-            }
         }
 
         g_mutex_unlock(&mod->busy);
@@ -1537,14 +1528,6 @@ void gtk_sat_module_connect_to_sat(GtkSatModule * module, gint catnum)
     module->connectedToTarget = TRUE;
 }
 
-void gtk_sat_module_connect_to_sat_auto_disconnect(GtkSatModule * module, gint catnum, gdouble autoDisconnectTime)
-{
-    gtk_sat_module_connect_to_sat(module, catnum);
-
-    module->autoDisconnect = TRUE;
-    module->autoDisconnectTime = autoDisconnectTime;
-}
-
 void gtk_sat_module_disconnect_from_sat(GtkSatModule * module)
 {
     if (module->rigctrl != NULL)
@@ -1580,7 +1563,6 @@ void gtk_sat_module_disconnect_from_sat(GtkSatModule * module)
     }
 
     module->connectedToTarget = FALSE;
-    module->autoDisconnect = FALSE;
 }
 
 void gtk_sat_module_start_rigctrl(GtkSatModule * module, gboolean showWindow)
