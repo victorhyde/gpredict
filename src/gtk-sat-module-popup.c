@@ -43,6 +43,7 @@
 extern GtkWidget *app;          /* in main.c */
 
 static void     demodulate_cb(GtkWidget * menuitem, gpointer data);
+static void     select_file_cb(GtkWidget * button, gpointer window);
 static void     connect_to_sat_cb(GtkWidget * menuitem, gpointer data);
 static void     config_cb(GtkWidget * menuitem, gpointer data);
 static void     clone_cb(GtkWidget * menuitem, gpointer data);
@@ -166,7 +167,7 @@ void gtk_sat_module_popup(GtkSatModule * module)
     /* demodulate downloaded wav files */
     menuitem = gtk_menu_item_new_with_label(_("Demodulate .wav file"));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-    g_signal_connect(menuitem, "active", G_CALLBACK(demodulate_cb), module);
+    g_signal_connect(menuitem, "activate", G_CALLBACK(demodulate_cb), module);
 
     /* separator */
     menuitem = gtk_separator_menu_item_new();
@@ -233,7 +234,71 @@ void gtk_sat_module_popup(GtkSatModule * module)
 
 static void demodulate_cb(GtkWidget *menuitem, gpointer data)
 {
-    // TODO	
+    GtkWidget *dialog;
+    GtkWidget *wav_label;
+    GtkWidget *wav_dir;
+    GtkWidget *vbox;
+    guint response;
+    GtkSatModule *module = GTK_SAT_MODULE(data);
+    GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_OPEN;
+
+    dialog = gtk_dialog_new_with_buttons(_("Demodulate .wav file"),
+	    GTK_WINDOW(gtk_widget_get_toplevel(
+			    GTK_WIDGET(module))),
+            GTK_DIALOG_MODAL |
+            GTK_DIALOG_DESTROY_WITH_PARENT,
+            "_Cancel", GTK_RESPONSE_CANCEL,
+            "_OK", GTK_RESPONSE_OK,
+            NULL);	    
+
+    gtk_container_set_border_width(GTK_CONTAINER(dialog), 5);
+
+    /* labels */
+    wav_label = gtk_label_new(_(".wav file to demodulate"));
+    vbox = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    gtk_box_pack_start(GTK_BOX(vbox), wav_label, FALSE, FALSE, 0);
+
+    /* file chooser */
+    GtkWidget *button;
+
+    button = gtk_button_new_with_label("Choose file");
+    g_signal_connect(button, "clicked", G_CALLBACK(select_file_cb), dialog);
+    gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 30);
+
+    /* selected file label */
+    //GtkWidget *sel_label;
+    //sel_label = gtk_label_new(filename);
+    //gtk_box_pack_start(GTK_BOX(vbox), sel_label, FALSE, FALSE, 60);
+
+    
+    gtk_widget_show_all(vbox);
+
+    /* run dialog */
+    response = gtk_dialog_run(GTK_DIALOG(dialog));
+}
+
+static void select_file_cb(GtkWidget *button, gpointer window)
+{
+    GtkWidget *dialog;
+    dialog = gtk_file_chooser_dialog_new(
+		    "Select file",
+		    GTK_WINDOW(window),
+		    GTK_FILE_CHOOSER_ACTION_OPEN,
+		    GTK_STOCK_OK,
+		    GTK_RESPONSE_OK,
+		    GTK_STOCK_CANCEL,
+		    GTK_RESPONSE_CANCEL,
+		    NULL);
+
+    gtk_widget_show_all(dialog);
+    gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), g_get_home_dir());
+    gint resp = gtk_dialog_run(GTK_DIALOG(dialog));
+
+    if (resp == GTK_RESPONSE_OK) {
+        g_print(gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog)));
+    }
+
+    gtk_widget_destroy(dialog);
 }
 
 static void connect_to_sat_cb(GtkWidget * menuitem, gpointer data)
