@@ -42,6 +42,7 @@
 
 extern GtkWidget *app;          /* in main.c */
 
+static void     demodulate_cb(GtkWidget * menuitem, gpointer data);
 static void     connect_to_sat_cb(GtkWidget * menuitem, gpointer data);
 static void     config_cb(GtkWidget * menuitem, gpointer data);
 static void     clone_cb(GtkWidget * menuitem, gpointer data);
@@ -162,6 +163,11 @@ void gtk_sat_module_popup(GtkSatModule * module)
         gtk_menu_shell_append(GTK_MENU_SHELL(satsubmenu), menuitem);
     }
 
+    /* demodulate downloaded wav files */
+    menuitem = gtk_menu_item_new_with_label(_("Demodulate .wav file"));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+    g_signal_connect(menuitem, "active", G_CALLBACK(demodulate_cb), module);
+
     /* separator */
     menuitem = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
@@ -223,6 +229,11 @@ void gtk_sat_module_popup(GtkSatModule * module)
 
     gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL,
                    0, gdk_event_get_time(NULL));
+}
+
+static void demodulate_cb(GtkWidget *menuitem, gpointer data)
+{
+    // TODO	
 }
 
 static void connect_to_sat_cb(GtkWidget * menuitem, gpointer data)
