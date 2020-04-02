@@ -31,6 +31,8 @@
 #include "sat-log.h"
 #include "sat-pass-dialogs.h"
 #include "sgpsdp/sgp4sdp4.h"
+#include "gtk-sat-module.h"
+#include "mod-mgr.h"
 
 extern GtkWidget *app;
 
@@ -68,14 +70,66 @@ static void schedule_pass_connection(GtkWidget * menuitem, gpointer data)
 {
     pass_t         *pass;
     qth_t          *qth;
+    GList          *satlist = NULL;
+    GList          *iter;
+    sat_t          *sat = NULL;
+    guint           i, n;
 
     pass = PASS(g_object_get_data(G_OBJECT(menuitem), "pass"));
     qth = (qth_t *) g_object_get_data(G_OBJECT(menuitem), "qth");
+    g_print("REQUESTED SAT %s\n", pass->satname);
 
-    (void)menuitem;
-    (void)data;
-    g_print("HERE");
-    schedule("Amateur", 1234, pass->aos, pass->los);
+    GtkSatModule *module = GTK_SAT_MODULE(mod_mgr_get_current_module());
+    g_print("module name %s\n", module->name);
+
+    satlist = g_hash_table_get_values(module->satellites);
+    iter = satlist;
+    n = g_list_length(satlist);
+    if (n == 0)
+        return;
+
+    i = 0;
+    while (i++ < n)
+    {
+        sat = (sat_t *) iter->data;
+        g_print("Satellite name %s\n", sat->nickname);
+        if (strcmp(sat->nickname, pass->satname) == 0){
+            break;
+        }
+
+        iter = iter->next;
+    }
+
+    if(sat == NULL || strcmp(sat->nickname, pass->satname) != 0){
+        g_print("Satellite %s not found in module %s!\n", pass->satname, module->name);
+        return;
+    }
+
+    schedule(module->name, sat->tle.catnr, pass->aos, pass->los);
+
+    gchar          *fmtstr;
+    gchar           startTime[TIME_FORMAT_MAX_LENGTH + 1];
+    gchar           endTime[TIME_FORMAT_MAX_LENGTH + 1];
+
+    fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
+    daynum_to_str(startTime, TIME_FORMAT_MAX_LENGTH, fmtstr, pass->aos);
+    daynum_to_str(endTime, TIME_FORMAT_MAX_LENGTH, fmtstr, pass->los);
+
+    // gchar * successMessage;
+    // successMessage = g_strdup_printf("Scheduled connection with satellite %s from %s to %s.", pass->satname, startTime, endTime);
+
+    GtkWidget *dialog = gtk_message_dialog_new(NULL,
+                                    GTK_DIALOG_MODAL |
+                                    GTK_DIALOG_DESTROY_WITH_PARENT,
+                                    GTK_MESSAGE_INFO,
+                                    GTK_BUTTONS_OK,
+                                    _("Scheduled connection with %s\nfrom %s\nto %s"),
+                                    pass->satname,
+                                    startTime,
+                                    endTime);
+
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
 }
 
 /* data = toplevel window */
