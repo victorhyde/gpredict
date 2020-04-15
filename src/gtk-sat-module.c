@@ -1563,6 +1563,7 @@ void gtk_sat_module_disconnect_from_sat(GtkSatModule * module)
     }
 
     module->connectedToTarget = FALSE;
+    g_print("DISCONNECTED");
 }
 
 void gtk_sat_module_start_rigctrl(GtkSatModule * module, gboolean showWindow)
