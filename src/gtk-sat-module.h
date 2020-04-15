@@ -115,6 +115,7 @@ struct _gtk_sat_module {
     /* auto-tracking */
     gint            target;     /*!< Target satellite */
     gboolean        autotrack;  /*!< Whether automatic tracking is enabled */
+    gboolean        connectedToTarget;  /*!< Whether the antenna and radio are engaged to track target satellite */
 
     /* location structure */
     struct gps_data_t *gps_data;        /*!< GPSD data structure */
@@ -129,10 +130,19 @@ GtkWidget      *gtk_sat_module_new(const gchar * cfgfile);
 
 void            gtk_sat_module_close_cb(GtkWidget * button, gpointer data);
 void            gtk_sat_module_config_cb(GtkWidget * button, gpointer data);
+/* Added for Scheduling module */
+void            gtk_sat_module_scheduling_cb(GtkWidget * button, gpointer data);
+void            update_autotrack(GtkSatModule * module);
 
 void            gtk_sat_module_reload_sats(GtkSatModule * module);
 void            gtk_sat_module_reconf(GtkSatModule * module, gboolean local);
 void            gtk_sat_module_select_sat(GtkSatModule * module, gint catnum);
+
+void            gtk_sat_module_connect_to_sat(GtkSatModule * module, gint catnum);
+void            gtk_sat_module_disconnect_from_sat(GtkSatModule * module);
+
+void            gtk_sat_module_start_rigctrl(GtkSatModule * module, gboolean showWindow);
+void            gtk_sat_module_start_rotctrl(GtkSatModule * module, gboolean showWindow);
 
 void            gtk_sat_module_fix_size(GtkWidget * module);
 

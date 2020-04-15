@@ -64,6 +64,10 @@
 #include "sgpsdp/sgp4sdp4.h"
 #include "time-tools.h"
 
+void destroy_rigctrl(GtkWidget * window, gpointer data);
+void destroy_rotctrl(GtkWidget * window, gpointer data);
+gint window_delete(GtkWidget * widget, GdkEvent * event,
+                              gpointer data);
 
 static GtkVBoxClass *parent_class = NULL;
 
@@ -72,7 +76,7 @@ static void gtk_sat_module_free_sat(gpointer sat)
     gtk_sat_data_free_sat(SAT(sat));
 }
 
-static void update_autotrack(GtkSatModule * module)
+void update_autotrack(GtkSatModule * module)
 {
     GList          *satlist = NULL;
     GList          *iter;
@@ -242,6 +246,7 @@ static void gtk_sat_module_init(GtkSatModule * module)
 
     module->target = -1;
     module->autotrack = FALSE;
+    module->connectedToTarget = FALSE;
 }
 
 GType gtk_sat_module_get_type()
@@ -282,7 +287,6 @@ GType gtk_sat_module_get_type()
 static GtkWidget *create_view(GtkSatModule * module, guint num)
 {
     GtkWidget      *view;
-
     switch (num)
     {
     case GTK_SAT_MOD_VIEW_LIST:
@@ -782,7 +786,7 @@ static gboolean gtk_sat_module_timeout_cb(gpointer module)
 
         /* update target if autotracking is enabled */
         if (mod->autotrack)
-            update_autotrack(mod);
+            update_autotrack(module);
 
         /* send notice to radio and rotator controller */
         if (mod->rigctrl)
@@ -935,14 +939,16 @@ static void gtk_sat_module_read_cfg_data(GtkSatModule * module,
     {
         /* the grid configuration is bogus; override with global default */
         sat_log_log(SAT_LOG_LEVEL_ERROR,
-                    _("%s: Module layout is invalid: %s. Using default."),
+                    _("%s: Module layout is invalid: %s. Using default (5)."),
                     __func__, buffer);
         g_free(buffer);
         g_strfreev(buffv);
 
-        buffer = sat_cfg_get_str_def(SAT_CFG_STR_MODULE_GRID);
-        buffv = g_strsplit(buffer, ";", 0);
-        length = g_strv_length(buffv);
+        //buffer = sat_cfg_get_str_def(SAT_CFG_STR_MODULE_GRID);
+        //buffv = g_strsplit(buffer, ";", 0);
+        //length = g_strv_length(buffv);
+
+        length = 5;
     }
 
     /* make a debug log entry */
@@ -1366,6 +1372,176 @@ void gtk_sat_module_config_cb(GtkWidget * button, gpointer data)
     g_free(name);
 }
 
+/**
+ * Scheduling module.
+ *
+ * @param button The button widget that received the signal.
+ * @param data Pointer the GtkSatModule widget, which should be reconfigured
+ *
+ * This function is called when the user clicks on the "scheduling" minibutton.
+ * The function incokes the mod_sched_edit funcion, which has the same look and feel
+ * as the dialog used to create a new module.
+ *
+ * NOTE: Don't use button, since we don't know what kind of widget it is
+ *       (it may be button or menu item).
+ */
+void gtk_sat_module_scheduling_cb(GtkWidget * button, gpointer data)
+{
+    GtkSatModule   *module = GTK_SAT_MODULE(data);
+    GtkAllocation   alloc;
+    GtkWidget      *toplevel;
+    GtkWidget      *menuitem;
+    gchar          *name;
+    gchar          *cfgfile;
+    mod_cfg_status_t retcode;
+    gtk_sat_mod_state_t laststate;
+    gint            w, h;
+
+    (void)button;
+
+    if (module->win != NULL)
+        toplevel = module->win;
+    else
+        toplevel = gtk_widget_get_toplevel(GTK_WIDGET(data));
+
+    name = g_strdup(module->name);
+
+    sat_log_log(SAT_LOG_LEVEL_DEBUG,
+                _("%s: Module %s received SCHEDULING signal."), __func__, name);
+
+    /* stop timeout */
+    if (!g_source_remove(module->timerid))
+    {
+        /* internal error, since the timerid appears
+           to be invalid.
+         */
+        sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s: Could not stop timeout callback\n"
+                      "%s: Source ID %d seems invalid."),
+                    __func__, __func__, module->timerid);
+    }
+    else
+    {
+        module->timerid = -1;
+        retcode = mod_sched_edit(name, module->cfgdata, toplevel, data);
+        if (retcode == MOD_CFG_OK)
+        {
+            /* save changes */
+            retcode = mod_cfg_save(name, module->cfgdata);
+
+            /* set autotrack */
+            module->autotrack = TRUE;
+
+            if (retcode != MOD_CFG_OK)
+            {
+                /**** FIXME: dialog */
+                sat_log_log(SAT_LOG_LEVEL_ERROR,
+                            _
+                            ("%s: Module configuration failed for some reason."),
+                            __func__);
+                /* don't try to reload config since it may be
+                   invalid; keep original */
+            }
+            else
+            {
+                /* store state and size */
+                laststate = module->state;
+                gtk_widget_get_allocation(GTK_WIDGET(module), &alloc);
+                w = alloc.width;
+                h = alloc.height;
+
+                gtk_sat_module_close_cb(NULL, module);
+
+                gchar          *confdir = get_modules_dir();
+
+                cfgfile =
+                    g_strconcat(confdir, G_DIR_SEPARATOR_S, name, ".mod",
+                                NULL);
+                g_free(confdir);
+
+                module = GTK_SAT_MODULE(gtk_sat_module_new(cfgfile));
+                module->state = laststate;
+                module->autotrack = TRUE;
+
+                switch (laststate)
+                {
+
+                case GTK_SAT_MOD_STATE_DOCKED:
+
+                    /* re-open module by adding it to the mod-mgr */
+                    mod_mgr_add_module(GTK_WIDGET(module), TRUE);
+
+                    break;
+
+                case GTK_SAT_MOD_STATE_WINDOW:
+
+                    /* add to module manager */
+                    mod_mgr_add_module(GTK_WIDGET(module), FALSE);
+
+                    /* create window */
+                    module->win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+                    gtk_window_set_title(GTK_WINDOW(module->win),
+                                         module->name);
+                    gtk_window_set_default_size(GTK_WINDOW(module->win), w, h);
+
+                    /** FIXME: window icon and such */
+
+                    /* add module to window */
+                    gtk_container_add(GTK_CONTAINER(module->win),
+                                      GTK_WIDGET(module));
+
+                    /* show window */
+                    gtk_widget_show_all(module->win);
+
+                    break;
+
+                case GTK_SAT_MOD_STATE_FULLSCREEN:
+
+                    /* add to module manager */
+                    mod_mgr_add_module(GTK_WIDGET(module), FALSE);
+
+                    /* create window */
+                    module->win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+                    gtk_window_set_title(GTK_WINDOW(module->win),
+                                         module->name);
+                    gtk_window_set_default_size(GTK_WINDOW(module->win), w, h);
+
+                    /** FIXME: window icon and such */
+
+                    /* add module to window */
+                    gtk_container_add(GTK_CONTAINER(module->win),
+                                      GTK_WIDGET(module));
+
+                    /* show window */
+                    gtk_widget_show_all(module->win);
+
+                    gtk_window_fullscreen(GTK_WINDOW(module->win));
+
+                    break;
+
+                default:
+                    sat_log_log(SAT_LOG_LEVEL_ERROR,
+                                _("%s: Module %s has unknown state: %d"),
+                                __func__, name, module->state);
+                    break;
+                }
+
+                g_free(cfgfile);
+            }
+        }
+        else
+        {
+            /* user cancelled => just re-start timer */
+            module->autotrack = TRUE;
+            module->timerid = g_timeout_add(module->timeout,
+                                            gtk_sat_module_timeout_cb, data);
+        }
+    }
+
+    g_free(name);
+}
+
+
 static gboolean empty(gpointer key, gpointer val, gpointer data)
 {
     (void)key;
@@ -1503,6 +1679,245 @@ void gtk_sat_module_select_sat(GtkSatModule * module, gint catnum)
 
     if (module->rotctrl != NULL)
         gtk_rot_ctrl_select_sat(GTK_ROT_CTRL(module->rotctrl), catnum);
+}
+
+void gtk_sat_module_connect_to_sat(GtkSatModule * module, gint catnum)
+{
+    gtk_sat_module_select_sat(module, catnum);
+
+    // Start rigctrl and rotctrl in the background without showing
+    // the control windows to the user.
+    gtk_sat_module_start_rigctrl(module, FALSE);
+    gtk_sat_module_start_rotctrl(module, FALSE);
+
+    if (module->rigctrl != NULL)
+        gtk_rig_ctrl_set_sat_connection_active(GTK_RIG_CTRL(module->rigctrl), TRUE);
+
+    if (module->rotctrl != NULL)
+        gtk_rot_ctrl_set_sat_connection_active(GTK_ROT_CTRL(module->rotctrl), TRUE);
+
+    module->connectedToTarget = TRUE;
+}
+
+void gtk_sat_module_disconnect_from_sat(GtkSatModule * module)
+{
+    if (module->rigctrl != NULL)
+    {
+        if(gtk_widget_is_visible(module->rigctrlwin))
+        {
+            // If the rigctrl window is open, keep the process running
+            // but disengage the radio and stop tracking.
+            gtk_rig_ctrl_set_sat_connection_active(GTK_RIG_CTRL(module->rigctrl), FALSE);
+        }
+        else
+        {
+            // If the rigctrl window is not visible to the user,
+            // destroy the rigctrl object.
+            destroy_rigctrl(module->rigctrlwin, module);
+        }
+    }
+
+    if (module->rotctrl != NULL)
+    {
+        if(gtk_widget_is_visible(module->rotctrlwin))
+        {
+            // If the rotctrl window is open, keep the process running
+            // but disengage the rotator and stop tracking.
+            gtk_rot_ctrl_set_sat_connection_active(GTK_ROT_CTRL(module->rotctrl), FALSE);
+        }
+        else
+        {
+            // If the rigctrl window is not visible to the user,
+            // destroy the rigctrl object.
+            destroy_rotctrl(module->rotctrlwin, module);
+        }
+    }
+
+    module->connectedToTarget = FALSE;
+    g_print("DISCONNECTED");
+}
+
+void gtk_sat_module_start_rigctrl(GtkSatModule * module, gboolean showWindow)
+{
+    gchar          *buff;
+
+    if (module->rigctrlwin != NULL)
+    {
+        if(showWindow)
+        {
+            /* there is already a radio controller for this module */
+            gtk_widget_show_all(module->rigctrlwin);
+            gtk_window_present(GTK_WINDOW(module->rigctrlwin));
+        }
+        return;
+    }
+
+    module->rigctrl = gtk_rig_ctrl_new(module);
+
+    if (module->rigctrl == NULL)
+    {
+        /* gtk_rig_ctrl_new returned NULL becasue no radios are configured */
+        GtkWidget      *dialog;
+
+        dialog = gtk_message_dialog_new(NULL,
+                                        GTK_DIALOG_MODAL |
+                                        GTK_DIALOG_DESTROY_WITH_PARENT,
+                                        GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                        _("You have no radio configuration!\n"
+                                          "Please configure a radio first."));
+        g_signal_connect_swapped(dialog, "response",
+                                 G_CALLBACK(gtk_widget_destroy), dialog);
+        gtk_window_set_title(GTK_WINDOW(dialog), _("ERROR"));
+        gtk_widget_show_all(dialog);
+
+        return;
+    }
+
+    /* create a window */
+    module->rigctrlwin = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    buff = g_strdup_printf(_("Gpredict Radio Control: %s"), module->name);
+    gtk_window_set_title(GTK_WINDOW(module->rigctrlwin), buff);
+    g_free(buff);
+    g_signal_connect(G_OBJECT(module->rigctrlwin), "delete_event",
+                     G_CALLBACK(window_delete), NULL);
+    g_signal_connect(G_OBJECT(module->rigctrlwin), "destroy",
+                     G_CALLBACK(destroy_rigctrl), module);
+
+    /* window icon */
+    buff = icon_file_name("gpredict-oscilloscope.png");
+    gtk_window_set_icon_from_file(GTK_WINDOW(module->rigctrlwin), buff, NULL);
+    g_free(buff);
+
+    gtk_container_add(GTK_CONTAINER(module->rigctrlwin), module->rigctrl);
+
+    if(showWindow)
+    {
+        gtk_widget_show_all(module->rigctrlwin);
+    }
+}
+
+/**
+ * Destroy radio control window.
+ *
+ * @param window Pointer to the radio control window.
+ * @param data Pointer to the GtkSatModule to which this controller is attached.
+ * 
+ * This function is called automatically when the window is destroyed.
+ */
+void destroy_rigctrl(GtkWidget * window, gpointer data)
+{
+    GtkSatModule   *module = GTK_SAT_MODULE(data);
+
+    (void)window;               /* avoid unused parameter compiler warning */
+
+    module->rigctrlwin = NULL;
+    module->rigctrl = NULL;
+
+    if(module->connectedToTarget){
+        gtk_sat_module_disconnect_from_sat(module);
+    }
+
+    module->connectedToTarget = FALSE;
+}
+
+/**
+ * Open antenna rotator control window.
+ *
+ * @param menuitem The menuitem that was selected.
+ * @param data Pointer the GtkSatModule.
+ */
+void gtk_sat_module_start_rotctrl(GtkSatModule * module, gboolean showWindow)
+{
+    gchar          *buff;
+
+    if (module->rotctrlwin != NULL)
+    {
+        if(showWindow)
+        {
+            /* there is already a roto controller for this module */
+            gtk_widget_show_all(module->rotctrlwin);
+            gtk_window_present(GTK_WINDOW(module->rotctrl));
+        }
+        return;
+    }
+
+    module->rotctrl = gtk_rot_ctrl_new(module);
+
+    if (module->rotctrl == NULL)
+    {
+        /* gtk_rot_ctrl_new returned NULL becasue no rotators are configured */
+        GtkWidget      *dialog;
+
+        dialog = gtk_message_dialog_new(NULL,
+                                        GTK_DIALOG_MODAL |
+                                        GTK_DIALOG_DESTROY_WITH_PARENT,
+                                        GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                        _
+                                        ("You have no rotator configuration!\n"
+                                         "Please configure an antenna rotator first."));
+        g_signal_connect_swapped(dialog, "response",
+                                 G_CALLBACK(gtk_widget_destroy), dialog);
+        gtk_window_set_title(GTK_WINDOW(dialog), _("ERROR"));
+        gtk_widget_show_all(dialog);
+
+        return;
+    }
+
+    /* create a window */
+    module->rotctrlwin = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    buff = g_strdup_printf(_("Gpredict Rotator Control: %s"), module->name);
+    gtk_window_set_title(GTK_WINDOW(module->rotctrlwin), buff);
+    g_free(buff);
+    g_signal_connect(G_OBJECT(module->rotctrlwin), "delete_event",
+                     G_CALLBACK(window_delete), module);
+    g_signal_connect(G_OBJECT(module->rotctrlwin), "destroy",
+                     G_CALLBACK(destroy_rotctrl), module);
+
+    /* window icon */
+    buff = icon_file_name("gpredict-antenna.png");
+    gtk_window_set_icon_from_file(GTK_WINDOW(module->rotctrlwin), buff, NULL);
+    g_free(buff);
+
+    gtk_container_add(GTK_CONTAINER(module->rotctrlwin), module->rotctrl);
+
+    if(showWindow)
+    {
+        gtk_widget_show_all(module->rotctrlwin);
+    }
+}
+
+/**
+ * Destroy rotator control window.
+ *
+ * @param window Pointer to the rotator control window.
+ * @param data Pointer to the GtkSatModule to which this controller is attached.
+ * 
+ * This function is called automatically when the window is destroyed.
+ */
+void destroy_rotctrl(GtkWidget * window, gpointer data)
+{
+    GtkSatModule   *module = GTK_SAT_MODULE(data);
+
+    (void)window;
+
+    module->rotctrlwin = NULL;
+    module->rotctrl = NULL;
+
+    if(module->connectedToTarget){
+        gtk_sat_module_disconnect_from_sat(module);
+    }
+
+    module->connectedToTarget = FALSE;
+}
+
+/** Ensure that deleted top-level windows are destroyed */
+gint window_delete(GtkWidget * widget, GdkEvent * event, gpointer data)
+{
+    (void)widget;
+    (void)event;
+    (void)data;
+
+    return FALSE;
 }
 
 /**

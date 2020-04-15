@@ -43,6 +43,7 @@ static void     first_time_check_step_05(guint * error);
 static void     first_time_check_step_06(guint * error);
 static void     first_time_check_step_07(guint * error);
 static void     first_time_check_step_08(guint * error);
+static void     first_time_check_step_09(guint * error);
 
 /**
  * Perform first time checks.
@@ -82,6 +83,8 @@ static void     first_time_check_step_08(guint * error);
  *    in the pre-1.1 configuration directory (use get_old_conf_dir()).
  * 8. Check for the existence of USER_CONF_DIR/trsp directory. This
  *    directory contains transponder data for satellites.
+ * 9. Check for the existence of USER_CONF_DIR/scheduler directory. This
+ *    directory contains a list of scheduled satellite communications.
  *
  * Send both error, warning and verbose debug messages to sat-log during this
  * process.
@@ -104,6 +107,7 @@ guint first_time_check_run()
     first_time_check_step_06(&error);
     first_time_check_step_07(&error);
     first_time_check_step_08(&error);
+    first_time_check_step_09(&error);
 
     return error;
 }
@@ -791,6 +795,49 @@ static void first_time_check_step_08(guint * error)
     int             status;
 
     dir = get_trsp_dir();
+
+    if (g_file_test(dir, G_FILE_TEST_IS_DIR))
+    {
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, _("%s: Check successful."), __func__);
+    }
+    else
+    {
+        /* try to create directory */
+        sat_log_log(SAT_LOG_LEVEL_DEBUG,
+                    _("%s: Check failed. Creating %s"), __func__, dir);
+
+        status = g_mkdir_with_parents(dir, 0755);
+
+        if (status)
+        {
+            /* set error flag */
+            *error |= FTC_ERROR_STEP_08;
+            sat_log_log(SAT_LOG_LEVEL_ERROR, _("%s: Failed to create %s"),
+                        __func__, dir);
+        }
+        else
+        {
+            sat_log_log(SAT_LOG_LEVEL_DEBUG,
+                        _("%s: Created %s."), __func__, dir);
+        }
+    }
+
+    g_free(dir);
+}
+
+/**
+ * Execute step 9 of the first time checks.
+ *
+ * 9. Check for the existence of USER_CONF_DIR/trsp directory. This
+ *    directory contains a list of scheduled satellite communications.
+ *
+ */
+static void first_time_check_step_09(guint * error)
+{
+    gchar          *dir;
+    int             status;
+
+    dir = get_scheduler_dir();
 
     if (g_file_test(dir, G_FILE_TEST_IS_DIR))
     {

@@ -237,6 +237,81 @@ gint mod_mgr_add_module(GtkWidget * module, gboolean dock)
     return retcode;
 }
 
+/* Get module by name. Returns NULL if module doesn't exist.
+ *
+ */
+GtkWidget *mod_mgr_get_module(gchar * name)
+{
+    guint           num;
+    guint           i;
+    GtkWidget      *module;
+    gchar          *mods = NULL;
+    gchar          *buff;
+    gint            page;
+
+
+    if (!nbook)
+    {
+        sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s: mod-mgr is NULL"),
+                    __func__);
+        return NULL;
+    }
+
+    num = g_slist_length(modules);
+    if (num == 0)
+    {
+        sat_log_log(SAT_LOG_LEVEL_INFO,
+                    _("%s: No modules found."), __func__);
+
+        return NULL;
+    }
+
+    for (i = 0; i < num; i++)
+    {
+        module = GTK_WIDGET(g_slist_nth_data(modules, i));
+
+        if (module && strcmp(GTK_SAT_MODULE(module)->name, name) == 0)
+        {
+            return module;
+        }
+    }
+
+    sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s: Module %s not found."),
+                    __func__, name);
+    return NULL;
+}
+
+/* Returs currently visible module or NULL if no module is currently visible.
+ *
+*/
+GtkWidget *mod_mgr_get_current_module()
+{
+    GtkWidget      *module;
+    gint            page;
+
+    if (!nbook)
+    {
+        sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s: mod-mgr is NULL"),
+                    __func__);
+        return NULL;
+    }
+
+    page = gtk_notebook_get_current_page(GTK_NOTEBOOK(nbook));
+    return GTK_WIDGET(g_slist_nth_data(modules, page));
+}
+
+void mod_mgr_switch_to_module(GtkWidget * module)
+{
+    gint            page;
+
+    page = gtk_notebook_page_num(GTK_NOTEBOOK(nbook), module);
+    if (page >= 0)
+            gtk_notebook_set_current_page(GTK_NOTEBOOK(nbook), page);
+}
+
 gint mod_mgr_remove_module(GtkWidget * module)
 {
     gint            page;

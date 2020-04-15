@@ -30,6 +30,7 @@
 #endif
 
 #include "compat.h"
+#include "gtk-sat-module.h"
 #include "gtk-sat-selector.h"
 #include "gui.h"
 #include "first-time.h"
@@ -48,12 +49,20 @@ static gboolean cleantle = FALSE;
 /* Command line flag for cleaning TRSP data */
 static gboolean cleantrsp = FALSE;
 
+static gint sat_catnum = -1;
+static gchar *module_name = NULL;
+static gdouble disconnect_time = -1;
+
 /* Command line options. */
 static GOptionEntry entries[] = {
     {"clean-tle", 0, 0, G_OPTION_ARG_NONE, &cleantle,
      "Clean the TLE data in user's configuration directory", NULL},
     {"clean-trsp", 0, 0, G_OPTION_ARG_NONE, &cleantrsp,
      "Clean the transponder data in user's configuration directory", NULL},
+    { "track-sat", 0, 0, G_OPTION_ARG_INT, &sat_catnum, "Engage radio and antenna to track satellite specified by catalog number", "N" },
+    { "module", 0, 0, G_OPTION_ARG_STRING, &module_name, "Name of module from which to track satellite", "NAME" },
+    { "disconnect-time", 0, 0, G_OPTION_ARG_DOUBLE, &disconnect_time, ("Time at which to auto disengage radio and antenna, "
+         "using Julian representation"), "T" },
     {NULL}
 };
 
@@ -93,7 +102,6 @@ int main(int argc, char *argv[])
     GError         *err = NULL;
     GOptionContext *context;
     guint           error = 0;
-
 
 #ifdef ENABLE_NLS
     bindtextdomain(PACKAGE, PACKAGE_LOCALE_DIR);
@@ -149,6 +157,23 @@ int main(int argc, char *argv[])
     // Initializing Windozze Sockets
     InitWinSock2();
 #endif
+
+    GtkWidget * module;
+    if (module_name){
+        module = mod_mgr_get_module(module_name);
+    } else {
+        module = mod_mgr_get_current_module();
+    }
+    if(module && sat_catnum >= 0){
+        mod_mgr_switch_to_module(module);
+        gtk_sat_module_connect_to_sat(GTK_SAT_MODULE(module), sat_catnum);
+        if(disconnect_time >= 0){
+            scheduler_auto_disconnect(module_name, sat_catnum, disconnect_time);
+        }
+    }
+    else{
+        g_print("Unable to connect to satellite: %d\n", sat_catnum);
+    }
 
     gtk_main();
 

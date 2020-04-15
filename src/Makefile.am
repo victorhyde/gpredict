@@ -111,6 +111,7 @@ gpredict_SOURCES = \
     sat-pref-multi-pass.c sat-pref-multi-pass.h \
     sat-pref-single-pass.c sat-pref-single-pass.h \
     sat-pref-sky-at-glance.c sat-pref-sky-at-glance.h \
+    sat-connection-scheduler.c sat-connection-scheduler.h \
     sat-vis.c sat-vis.h \
     save-pass.c save-pass.h \
     time-tools.c time-tools.h \
